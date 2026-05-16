@@ -5,12 +5,40 @@ from datetime import datetime
 from core.database import get_conn
 
 
-def periodo_mes(mes: int, ano: int) -> tuple[int, int]:
-    """Retorna (inicio_ms, fim_ms) do mês em milissegundos."""
-    inicio = int(datetime(ano, mes, 1).timestamp() * 1000)
+def periodo_timestamps(mes: int, ano: int) -> tuple[str, str]:
+    """Limites do mês como TIMESTAMP (mesma regra do app / Swagger)."""
     _, ultimo_dia = monthrange(ano, mes)
-    fim = int(datetime(ano, mes, ultimo_dia, 23, 59, 59).timestamp() * 1000)
+    inicio = f"{ano}-{mes:02d}-01 00:00:00"
+    fim = f"{ano}-{mes:02d}-{ultimo_dia:02d} 23:59:59"
     return inicio, fim
+
+
+def periodo_mes(mes: int, ano: int) -> tuple[int, int]:
+    """Retorna (inicio_ms, fim_ms) via EXTRACT(EPOCH) no PostgreSQL."""
+    inicio_ts, fim_ts = periodo_timestamps(mes, ano)
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT
+              (EXTRACT(EPOCH FROM TIMESTAMP %s) * 1000)::bigint,
+              (EXTRACT(EPOCH FROM TIMESTAMP %s) * 1000)::bigint
+            """,
+            (inicio_ts, fim_ts),
+        )
+        row = cur.fetchone()
+        return int(row[0]), int(row[1])
+
+
+_SQL_FILTRO_PERIODO = """
+  AND data_hora >= (EXTRACT(EPOCH FROM TIMESTAMP %s) * 1000)::bigint
+  AND data_hora <= (EXTRACT(EPOCH FROM TIMESTAMP %s) * 1000)::bigint
+"""
+
+_SQL_FILTRO_PERIODO_L = """
+  AND l.data_hora >= (EXTRACT(EPOCH FROM TIMESTAMP %s) * 1000)::bigint
+  AND l.data_hora <= (EXTRACT(EPOCH FROM TIMESTAMP %s) * 1000)::bigint
+"""
 
 
 def ts_para_data(ts_ms: int) -> str:
@@ -19,22 +47,50 @@ def ts_para_data(ts_ms: int) -> str:
     return datetime.fromtimestamp(ts_ms / 1000).strftime("%d/%m/%Y")
 
 
-def buscar_resumo_mensal(mes: int, ano: int) -> str:
-    """Total de receitas, despesas e saldo do período."""
-    inicio, fim = periodo_mes(mes, ano)
+def buscar_total_gasto_mes(mes: int, ano: int) -> float:
+    """Total de despesas do mês (mesma query do app)."""
+    inicio_ts, fim_ts = periodo_timestamps(mes, ano)
     with get_conn() as conn:
         cur = conn.cursor()
         cur.execute(
-            """
-            SELECT
-                COALESCE(SUM(CASE WHEN tipo_movimento = 2 THEN valor ELSE 0 END), 0) as receitas,
-                COALESCE(SUM(CASE WHEN tipo_movimento = 1 THEN valor ELSE 0 END), 0) as despesas,
-                COUNT(*) as total_lancamentos
+            f"""
+            SELECT COALESCE(SUM(valor), 0) AS total_gasto_mes
             FROM lancamentos
-            WHERE data_hora BETWEEN %s AND %s
+            WHERE tipo_movimento = 1
               AND pago = 1
+              AND COALESCE(pagamento_fatura, 0) = 0
+            {_SQL_FILTRO_PERIODO}
             """,
-            (inicio, fim),
+            (inicio_ts, fim_ts),
+        )
+        return float(cur.fetchone()[0])
+
+
+def buscar_resumo_mensal(mes: int, ano: int) -> str:
+    """Total de receitas, despesas e saldo do período."""
+    inicio_ts, fim_ts = periodo_timestamps(mes, ano)
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"""
+            SELECT
+                COALESCE(SUM(valor) FILTER (WHERE tipo_movimento = 2), 0) AS receitas,
+                COALESCE(
+                    SUM(valor) FILTER (
+                        WHERE tipo_movimento = 1
+                          AND COALESCE(pagamento_fatura, 0) = 0
+                    ),
+                    0
+                ) AS despesas,
+                COUNT(*) FILTER (
+                    WHERE tipo_movimento = 1
+                      AND COALESCE(pagamento_fatura, 0) = 0
+                ) AS total_lancamentos_gasto
+            FROM lancamentos
+            WHERE pago = 1
+            {_SQL_FILTRO_PERIODO}
+            """,
+            (inicio_ts, fim_ts),
         )
         row = cur.fetchone()
         receitas = float(row[0])
@@ -45,6 +101,7 @@ def buscar_resumo_mensal(mes: int, ano: int) -> str:
                 "ano": ano,
                 "receitas": receitas,
                 "despesas": despesas,
+                "total_gasto_mes": despesas,
                 "saldo": receitas - despesas,
                 "total_lancamentos": row[2],
             },
@@ -56,11 +113,11 @@ def buscar_gastos_por_categoria(mes: int, ano: int) -> str:
     """
     Gastos agrupados por categoria COM subcategorias detalhadas.
     """
-    inicio, fim = periodo_mes(mes, ano)
+    inicio_ts, fim_ts = periodo_timestamps(mes, ano)
     with get_conn() as conn:
         cur = conn.cursor()
         cur.execute(
-            """
+            f"""
             SELECT
                 COALESCE(c.nome, 'Sem categoria')  AS categoria,
                 COALESCE(s.nome, 'Sem subcategoria') AS subcategoria,
@@ -72,13 +129,14 @@ def buscar_gastos_por_categoria(mes: int, ano: int) -> str:
             LEFT JOIN subcategorias_personalizadas s
                 ON l.id_subcategoria_personalizada = s.id
                 AND l.id_subcategoria_personalizada > 0
-            WHERE l.data_hora BETWEEN %s AND %s
-              AND l.tipo_movimento = 1
+            WHERE l.tipo_movimento = 1
               AND l.pago = 1
+              AND COALESCE(l.pagamento_fatura, 0) = 0
+            {_SQL_FILTRO_PERIODO_L}
             GROUP BY c.nome, s.nome
             ORDER BY SUM(l.valor) DESC
             """,
-            (inicio, fim),
+            (inicio_ts, fim_ts),
         )
         rows = cur.fetchall()
 
@@ -105,11 +163,11 @@ def buscar_gastos_por_categoria(mes: int, ano: int) -> str:
 
 def buscar_lancamentos_recentes(mes: int, ano: int, limite: int = 10) -> str:
     """Últimos lançamentos do período com categoria e subcategoria."""
-    inicio, fim = periodo_mes(mes, ano)
+    inicio_ts, fim_ts = periodo_timestamps(mes, ano)
     with get_conn() as conn:
         cur = conn.cursor()
         cur.execute(
-            """
+            f"""
             SELECT
                 l.descricao,
                 l.valor,
@@ -124,12 +182,12 @@ def buscar_lancamentos_recentes(mes: int, ano: int, limite: int = 10) -> str:
             LEFT JOIN subcategorias_personalizadas s
                 ON l.id_subcategoria_personalizada = s.id
                 AND l.id_subcategoria_personalizada > 0
-            WHERE l.data_hora BETWEEN %s AND %s
-              AND l.pago = 1
+            WHERE l.pago = 1
+            {_SQL_FILTRO_PERIODO_L}
             ORDER BY l.data_hora DESC
             LIMIT %s
             """,
-            (inicio, fim, limite),
+            (inicio_ts, fim_ts, limite),
         )
         rows = cur.fetchall()
 
@@ -198,11 +256,11 @@ def buscar_historico_meses(quantidade: int = 6) -> str:
 
 def buscar_top_gastos(mes: int, ano: int, limite: int = 5) -> str:
     """Top N maiores gastos do período com categoria e subcategoria."""
-    inicio, fim = periodo_mes(mes, ano)
+    inicio_ts, fim_ts = periodo_timestamps(mes, ano)
     with get_conn() as conn:
         cur = conn.cursor()
         cur.execute(
-            """
+            f"""
             SELECT
                 l.descricao,
                 l.valor,
@@ -216,13 +274,14 @@ def buscar_top_gastos(mes: int, ano: int, limite: int = 5) -> str:
             LEFT JOIN subcategorias_personalizadas s
                 ON l.id_subcategoria_personalizada = s.id
                 AND l.id_subcategoria_personalizada > 0
-            WHERE l.data_hora BETWEEN %s AND %s
-              AND l.tipo_movimento = 1
+            WHERE l.tipo_movimento = 1
               AND l.pago = 1
+              AND COALESCE(l.pagamento_fatura, 0) = 0
+            {_SQL_FILTRO_PERIODO_L}
             ORDER BY l.valor DESC
             LIMIT %s
             """,
-            (inicio, fim, limite),
+            (inicio_ts, fim_ts, limite),
         )
         rows = cur.fetchall()
 

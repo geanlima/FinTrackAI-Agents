@@ -33,9 +33,9 @@ Responda em português do Brasil. Valores em R$ X.XXX,XX.
 
 def build_compra_agent(mes: int, ano: int, usuario_id: str):
     @tool
-    def buscar_resumo_mensal_tool(m: int, a: int) -> str:
-        """Receitas, despesas e saldo do mês."""
-        return buscar_resumo_mensal(m, a)
+    def buscar_resumo_mensal_tool() -> str:
+        f"""Receitas, despesas e saldo de {mes}/{ano}."""
+        return buscar_resumo_mensal(mes, ano)
 
     @tool
     def buscar_contas_pendentes_tool() -> str:
@@ -43,9 +43,9 @@ def build_compra_agent(mes: int, ano: int, usuario_id: str):
         return buscar_contas_pendentes()
 
     @tool
-    def buscar_gastos_por_categoria_tool(m: int, a: int) -> str:
-        """Despesas por categoria e subcategoria para identificar onde reduzir."""
-        return buscar_gastos_por_categoria(m, a)
+    def buscar_gastos_por_categoria_tool() -> str:
+        f"""Despesas de {mes}/{ano} por categoria e subcategoria."""
+        return buscar_gastos_por_categoria(mes, ano)
 
     @tool
     async def buscar_precos_tool(produto: str) -> str:

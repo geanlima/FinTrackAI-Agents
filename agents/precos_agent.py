@@ -26,9 +26,9 @@ def build_precos_agent(mes: int, ano: int, usuario_id: str):
         return await buscar_precos(produto)
 
     @tool
-    def buscar_resumo_mensal_tool(m: int, a: int) -> str:
-        """Resumo financeiro do mês (receitas, despesas, saldo)."""
-        return buscar_resumo_mensal(m, a)
+    def buscar_resumo_mensal_tool() -> str:
+        f"""Resumo financeiro de {mes}/{ano} (receitas, despesas, saldo)."""
+        return buscar_resumo_mensal(mes, ano)
 
     tools = [
         buscar_precos_tool,

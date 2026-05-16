@@ -13,7 +13,7 @@ from tools.db_tools import (
 
 GERAL_SYSTEM = """Você é o agente geral do FinTrack AI (resumo, saldo, contas, visão ampla).
 
-Período de referência: mês {mes}, ano {ano}. Use esses valores quando o usuário não especificar outro.
+Período de referência: mês {mes}, ano {ano}. Ferramentas de período já usam esse mês/ano.
 
 Regras:
 - Use ferramentas para dados reais.
@@ -23,9 +23,9 @@ Regras:
 
 def build_geral_agent(mes: int, ano: int, usuario_id: str):
     @tool
-    def buscar_resumo_mensal_tool(m: int, a: int) -> str:
-        """Resumo de receitas, despesas e saldo do mês."""
-        return buscar_resumo_mensal(m, a)
+    def buscar_resumo_mensal_tool() -> str:
+        f"""Resumo de receitas, despesas e saldo de {mes}/{ano}."""
+        return buscar_resumo_mensal(mes, ano)
 
     @tool
     def buscar_contas_pendentes_tool() -> str:
@@ -33,9 +33,9 @@ def build_geral_agent(mes: int, ano: int, usuario_id: str):
         return buscar_contas_pendentes()
 
     @tool
-    def buscar_lancamentos_recentes_tool(m: int, a: int, limite: int = 10) -> str:
-        """Lançamentos recentes com categoria e subcategoria."""
-        return buscar_lancamentos_recentes(m, a, limite)
+    def buscar_lancamentos_recentes_tool(limite: int = 10) -> str:
+        f"""Lançamentos recentes de {mes}/{ano} com categoria e subcategoria."""
+        return buscar_lancamentos_recentes(mes, ano, limite)
 
     @tool
     def buscar_historico_meses_tool(quantidade: int = 6) -> str:

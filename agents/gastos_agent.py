@@ -14,7 +14,8 @@ from tools.db_tools import (
 
 GASTOS_SYSTEM = """Você é o agente de gastos do FinTrack AI.
 
-Período de referência da conversa: mês {mes}, ano {ano}. Quando o usuário disser "este mês" ou não especificar outro período, use esses valores nas ferramentas.
+Período de referência da conversa: mês {mes}, ano {ano}.
+As ferramentas de período já consultam esse mês/ano automaticamente.
 
 Regras:
 - Use as ferramentas para obter dados reais antes de responder.
@@ -32,24 +33,24 @@ Alimentação: R$ 850,00
 
 def build_gastos_agent(mes: int, ano: int, usuario_id: str):
     @tool
-    def buscar_resumo_mensal_tool(m: int, a: int) -> str:
-        """Total de receitas, despesas, saldo e quantidade de lançamentos pagos no período."""
-        return buscar_resumo_mensal(m, a)
+    def buscar_resumo_mensal_tool() -> str:
+        f"""Total de receitas, despesas, saldo e lançamentos de gasto em {mes}/{ano}."""
+        return buscar_resumo_mensal(mes, ano)
 
     @tool
-    def buscar_gastos_por_categoria_tool(m: int, a: int) -> str:
-        """Gastos agrupados por categoria com totais por subcategoria (JSON hierárquico)."""
-        return buscar_gastos_por_categoria(m, a)
+    def buscar_gastos_por_categoria_tool() -> str:
+        f"""Gastos de {mes}/{ano} por categoria e subcategoria (JSON hierárquico)."""
+        return buscar_gastos_por_categoria(mes, ano)
 
     @tool
-    def buscar_lancamentos_recentes_tool(m: int, a: int, limite: int = 10) -> str:
-        """Últimos lançamentos do período com categoria e subcategoria."""
-        return buscar_lancamentos_recentes(m, a, limite)
+    def buscar_lancamentos_recentes_tool(limite: int = 10) -> str:
+        f"""Últimos lançamentos de {mes}/{ano} com categoria e subcategoria."""
+        return buscar_lancamentos_recentes(mes, ano, limite)
 
     @tool
-    def buscar_top_gastos_tool(m: int, a: int, limite: int = 5) -> str:
-        """Maiores despesas do período com categoria e subcategoria."""
-        return buscar_top_gastos(m, a, limite)
+    def buscar_top_gastos_tool(limite: int = 5) -> str:
+        f"""Maiores despesas de {mes}/{ano} com categoria e subcategoria."""
+        return buscar_top_gastos(mes, ano, limite)
 
     @tool
     def buscar_historico_meses_tool(quantidade: int = 6) -> str:

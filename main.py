@@ -16,6 +16,7 @@ from agents.investimentos_agent import build_investimentos_agent
 from agents.precos_agent import build_precos_agent
 from agents.supervisor import classificar_intencao
 from core.database import get_conn, init_memory_tables
+from tools.db_tools import buscar_resumo_mensal, buscar_total_gasto_mes
 
 
 class MensagemHistorico(BaseModel):
@@ -145,6 +146,23 @@ async def chat(body: ChatRequest):
             "Connection": "keep-alive",
         },
     )
+
+
+@app.get("/dados/resumo-mensal")
+async def resumo_mensal(mes: int | None = None, ano: int | None = None):
+    """Resumo do mês (mesma query do app). Útil para validar no Swagger."""
+    m = mes or datetime.now().month
+    a = ano or datetime.now().year
+    return json.loads(buscar_resumo_mensal(m, a))
+
+
+@app.get("/dados/total-gasto-mes")
+async def total_gasto_mes(mes: int | None = None, ano: int | None = None):
+    """Total de despesas do mês (query canônica do FinTrack)."""
+    m = mes or datetime.now().month
+    a = ano or datetime.now().year
+    total = buscar_total_gasto_mes(m, a)
+    return {"mes": m, "ano": a, "total_gasto_mes": total}
 
 
 @app.get("/health")
