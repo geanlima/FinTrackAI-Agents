@@ -27,7 +27,7 @@ def build_precos_agent(mes: int, ano: int, usuario_id: str):
 
     @tool
     def buscar_resumo_mensal_tool() -> str:
-        f"""Resumo financeiro de {mes}/{ano} (receitas, despesas, saldo)."""
+        """Resumo financeiro do período de referência (receitas, despesas, saldo)."""
         return buscar_resumo_mensal(mes, ano)
 
     tools = [

@@ -34,7 +34,7 @@ Responda em português do Brasil. Valores em R$ X.XXX,XX.
 def build_compra_agent(mes: int, ano: int, usuario_id: str):
     @tool
     def buscar_resumo_mensal_tool() -> str:
-        f"""Receitas, despesas e saldo de {mes}/{ano}."""
+        """Receitas, despesas e saldo no período de referência."""
         return buscar_resumo_mensal(mes, ano)
 
     @tool
@@ -44,7 +44,7 @@ def build_compra_agent(mes: int, ano: int, usuario_id: str):
 
     @tool
     def buscar_gastos_por_categoria_tool() -> str:
-        f"""Despesas de {mes}/{ano} por categoria e subcategoria."""
+        """Despesas por categoria e subcategoria no período de referência."""
         return buscar_gastos_por_categoria(mes, ano)
 
     @tool

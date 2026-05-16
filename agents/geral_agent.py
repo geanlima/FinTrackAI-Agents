@@ -24,7 +24,7 @@ Regras:
 def build_geral_agent(mes: int, ano: int, usuario_id: str):
     @tool
     def buscar_resumo_mensal_tool() -> str:
-        f"""Resumo de receitas, despesas e saldo de {mes}/{ano}."""
+        """Resumo de receitas, despesas e saldo no período de referência."""
         return buscar_resumo_mensal(mes, ano)
 
     @tool
@@ -34,7 +34,7 @@ def build_geral_agent(mes: int, ano: int, usuario_id: str):
 
     @tool
     def buscar_lancamentos_recentes_tool(limite: int = 10) -> str:
-        f"""Lançamentos recentes de {mes}/{ano} com categoria e subcategoria."""
+        """Lançamentos recentes do período de referência com categoria e subcategoria."""
         return buscar_lancamentos_recentes(mes, ano, limite)
 
     @tool

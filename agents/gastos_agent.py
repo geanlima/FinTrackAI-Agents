@@ -34,22 +34,22 @@ Alimentação: R$ 850,00
 def build_gastos_agent(mes: int, ano: int, usuario_id: str):
     @tool
     def buscar_resumo_mensal_tool() -> str:
-        f"""Total de receitas, despesas, saldo e lançamentos de gasto em {mes}/{ano}."""
+        """Total de receitas, despesas, saldo e lançamentos de gasto no período de referência."""
         return buscar_resumo_mensal(mes, ano)
 
     @tool
     def buscar_gastos_por_categoria_tool() -> str:
-        f"""Gastos de {mes}/{ano} por categoria e subcategoria (JSON hierárquico)."""
+        """Gastos por categoria e subcategoria no período de referência (JSON hierárquico)."""
         return buscar_gastos_por_categoria(mes, ano)
 
     @tool
     def buscar_lancamentos_recentes_tool(limite: int = 10) -> str:
-        f"""Últimos lançamentos de {mes}/{ano} com categoria e subcategoria."""
+        """Últimos lançamentos do período de referência com categoria e subcategoria."""
         return buscar_lancamentos_recentes(mes, ano, limite)
 
     @tool
     def buscar_top_gastos_tool(limite: int = 5) -> str:
-        f"""Maiores despesas de {mes}/{ano} com categoria e subcategoria."""
+        """Maiores despesas do período de referência com categoria e subcategoria."""
         return buscar_top_gastos(mes, ano, limite)
 
     @tool
